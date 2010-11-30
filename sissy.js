@@ -1,4 +1,4 @@
-var EventEmitter = require('events').EventEmitter,
+
   sys = require('sys'),
   http = require('http'),
   crypto = require('crypto'),
@@ -65,7 +65,7 @@ Bucky.prototype.upload_file = function(file, target){
       };
       if(bucky.check_md5 === true){
         var hash = crypto.createHash('md5');
-        var file_stream = fs.createReadFileStream(file);
+        var file_stream = fs.createReadStream(file);
         file_stream.on('data', function(data){
           hash.update(data);
         });
