@@ -26,7 +26,7 @@ Bucky.prototype.authorize = function(headers, amz_headers, method, target) {
     content_type = headers['Content-Type'] || '',
     md5 =  headers['Content-MD5'] || '',
     current_date = headers.Date || new Date().toUTCString(),
-    amz_headers_list;
+    amz_headers_list = [];
   for (var header in amz_headers){
     var key = header.toString().toLowerCase(),
       value = headers[header];
