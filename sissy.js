@@ -103,6 +103,7 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
     }
   });
 };
+Bucky.prototype.streaming = false;
 
 Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5) {
   var bucky = this,
@@ -125,16 +126,18 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
   };
   bucky.authorize(headers, amz_headers, 'PUT', target);
   net_stream.on('data', function (data) { 
-    var continue_header = /100\s+continue/i;
-    var error_header = /400\s+Bad\s+Request/i;
-    if(continue_header.test(data)){
-      read_stream.resume();
-    }
-    if(error_header.test(data)){
-      err = Error(data);
-      read_stream.end();
-      net_stream.end();
-      bucky.emit('error', err);
+    if (!bucky.streaming) {
+      bucky.streaming = true;
+      var continue_header = /100\s+continue/i;
+      var error_header = /400\s+Bad\s+Request/i;
+      if (continue_header.test(data)) {
+        read_stream.resume();
+      } else if (error_header.test(data)) {
+      if (error_header.test(data)) {
+        read_stream.end();
+        net_stream.end();
+        bucky.emit('error', err);
+      }
     }
   });
   net_stream.on('connect', function() {
@@ -154,12 +157,12 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
   });
 };
 
-var Sissy = function(secret_key, access_key){
+var Sissy = function(secret_key, access_key) {
   this.secret_key = secret_key;
   this.access_key = access_key;
 };
 
-Sissy.prototype.bucket = function(host, bucket){
+Sissy.prototype.bucket = function(host, bucket, options) {
   return new Bucky(this, host, bucket, options);
 }
 
