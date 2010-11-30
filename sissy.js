@@ -1,15 +1,33 @@
-var EventEmitter = require('events').EventEmitter;
-  sys = require('sys'),
-  http = require('http'),
-  crypto = require('crypto'),
+/***************************************************
+ *
+ * Sissy: Yet Another S3 Module for Node 
+ * Dmytri Kleiner <dk@trick.ca>
+ *
+ * This program is free software. 
+ * It comes without any warranty, to the extent permitted by
+ * applicable law. You can redistribute it and/or modify it under the
+ * terms of the Do What The Fuck You Want To Public License v2.
+ * See http://sam.zoy.org/wtfpl/COPYING for more details. 
+ *
+ * This work was originaly commissiond by SoundCloud
+ *
+ * What is SoundCloud?
+ * http://soundcloud.com/tour
+ *
+ ***********************************/
+
+var events = require('events'),
   fs = require('fs'),
   path = require('path'),
-  net = require('net'),
+  sys = require('sys'),
   dns = require('dns'),
+  net = require('net'),
+  http = require('http'),
+  crypto = require('crypto'),
   mime = require('node-mime/mime');
 
-
-var Bucky = function(account, host, bucket, options){
+/* Bucky is an S3 Bucket */
+var Bucky = function(account, host, bucke, options){
   options = options || function(){};
   this.account = account;
   this.host = host;
@@ -18,10 +36,10 @@ var Bucky = function(account, host, bucket, options){
   this.acl = options.acl || 'private'; // set status to private on upload
   this.check_md5 = options.check_md5 || true;  // check the md5 on upload
 };
-sys.inherits(Bucky, EventEmitter);
+sys.inherits(Bucky, events.EventEmitter);
 
 Bucky.prototype.authorize = function(method, target, headers, amz_headers) {
-  var bucky = this,
+  vart buckm = this,
     content_type = headers['Content-Type'] || '',
     md5 =  headers['Content-MD5'] || '',
     current_date = headers.Date || new Date().toUTCString(),
@@ -127,7 +145,6 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
     if (!bucky.streaming) {
       bucky.streaming = true;
       var continue_header = /100\s+continue/i;
-      //var error_header = /400\s+Bad\s+Request/i;
       if (continue_header.test(data)) {
         read_stream.resume();
       } else {
@@ -162,6 +179,17 @@ Bucky.prototype.download_file = function(file, target, range){
   write_stream.on('open', function(fd) {
     bucky.get(write_stream, file, range);
   });
+  write_stream.on('close', function() {
+    fs.stat(file, function(err, stat) {
+      if (!err && stat.size == 0) {
+        fs.unlink(file);
+      }
+    });
+  });
+  write_stream.on('error', function(ex){
+    write_stream.destroy();
+    bucky.emit('error', ex);
+  });
 };
 
 Bucky.prototype.get = function(write_stream, file, range){
@@ -179,28 +207,21 @@ Bucky.prototype.get = function(write_stream, file, range){
   var request = http_client.request('GET', '/' + file, headers);
   request.end();
   request.on('response', function (response) {
-  response.on('data', function (chunk) {
-    write_stream.write(chunk);
+    if (response.statusCode == expected) {
+      response.on('end', function(){
+        write_stream.end();
+        bucky.emit('complete');
+      });
+      sys.pump(response, write_stream);
+    } else {
+      write_stream.end();
+      err = Error(response.statusCode + JSON.stringify(response.headers));
+      bucky.emit('error', err);
+    }
   });
-  response.on('end', function(){
-    write_stream.end();
-    bucky.emit('complete');
-  });
-  write_stream.on('drain', function(){
-    response.resume();
-  });
-  write_stream.on('error', function(ex){
-    write_stream.destroy();
-    bucky.emit('error', ex);
-  });
-  /*else{
-   write_stream.end();
-   err = Error(response.statusCode + JSON.stringify(response.headers));
-   bucky.emit('error', err);
-  }*/
- });
 };
 
+/* Sissy is an S3 Account */
 var Sissy = function(access_key, secret_key) {
   this.access_key = access_key;
   this.secret_key = secret_key;
