@@ -1,0 +1,5 @@
+/* to run tests, edit below and copy this file to test_config.js */
+exports.access_key = 'accesskey';
+exports.secret_key = 'secretkey';
+exports.bucket = 'yourbucket';
+exports.host = exports.bucket + '.s3.amazonaws.com';

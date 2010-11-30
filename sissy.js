@@ -20,40 +20,38 @@ var Bucky = function(account, host, bucket, options){
 };
 sys.inherits(Bucky, EventEmitter);
 
-Bucky.prototype.authorize = function(headers, amz_headers, method, target) {
+Bucky.prototype.authorize = function(method, target, headers, amz_headers) {
   var bucky = this,
-    hmac = crypto.createHmac('sha1', bucky.account.secret_key),
     content_type = headers['Content-Type'] || '',
     md5 =  headers['Content-MD5'] || '',
     current_date = headers.Date || new Date().toUTCString(),
     amz_headers_list = [];
-  for (var header in amz_headers){
-    var key = header.toString().toLowerCase(),
-      value = headers[header];
-    if (key == 'x-amz-date') {
-      current_date = '';
-    } else if(value instanceof Array) {
+  if (amz_headers) {
+    for (var header in amz_headers){
+      var key = header.toString().toLowerCase(),
+        value = amz_headers[header];
+      if (key == 'x-amz-date') {
+        current_date = '';
+      } else if(value instanceof Array) {
         value = value.join(',');
+      }
+      headers[key] = value;
+      amz_headers_list.push(key + ':' + value);
     }
-    headers[key] = value;
-    amz_headers_list.push(key + ':' + value);
+    var amz_headers_string = amz_headers_list.sort().join('\n');
   }
-  var amz_headers_string = amz_headers_list.sort().join('\n');
-  var authorization_string =
-    method + "\n" +
-    md5 + "\n" + // (optional)
-    content_type + "\n" + // (optional)
-    current_date + "\n" + // only include if no x-amz-date
-    amz_headers_string + "\n"// can be blank
-    '/' + bucky.bucket + '/' + target;
+  var authorization_string = method + "\n" + md5 + "\n" + content_type + "\n" + current_date + "\n";
+  if (amz_headers) {
+    authorization_string += amz_headers_string + "\n";
+  }
+  authorization_string +=  '/' + bucky.bucket + '/' + target;
+  hmac = crypto.createHmac('sha1', bucky.account.secret_key),
   hmac.update(authorization_string);
   headers.Authorization = 'AWS ' + bucky.account.access_key + ":" + hmac.digest(encoding = 'base64');
 };
 
 Bucky.prototype.upload_file = function(file, target){
-  var bucky = this,
-    secret_key = this.secret_key,
-    access_key = this.access_key;
+  var bucky = this;
   target = target || path.basename(file);
   fs.stat(file, function(err, stats){
     if (err) {
@@ -103,14 +101,14 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
     }
   });
 };
-Bucky.prototype.streaming = false;
 
+Bucky.prototype.streaming = false;
 Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5) {
   var bucky = this,
     mime_type = mime.lookup(target),
     headers = {
     'Date': new Date().toUTCString(),
-    'Host': host,
+    'Host': bucky.host,
     'Content-Type': mime.lookup(target),
     'Expect': '100-continue',
   };
@@ -124,17 +122,18 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
     'x-amz-storage-class': bucky.storage_type,
     'x-amz-acl': bucky.acl
   };
-  bucky.authorize(headers, amz_headers, 'PUT', target);
+  bucky.authorize('PUT', target, headers, amz_headers);
   net_stream.on('data', function (data) { 
     if (!bucky.streaming) {
       bucky.streaming = true;
       var continue_header = /100\s+continue/i;
-      var error_header = /400\s+Bad\s+Request/i;
+      //var error_header = /400\s+Bad\s+Request/i;
       if (continue_header.test(data)) {
         read_stream.resume();
-      } else if (error_header.test(data)) {
-        read_stream.end();
+      } else {
+        read_stream.destroy();
         net_stream.end();
+        err = Error(data);
         bucky.emit('error', err);
       }
     }
@@ -156,9 +155,55 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
   });
 };
 
-var Sissy = function(secret_key, access_key) {
-  this.secret_key = secret_key;
+Bucky.prototype.download_file = function(file, target, range){
+  var bucky = this;
+  target = target || path.basename(file);
+  var write_stream = fs.createWriteStream(target);
+  write_stream.on('open', function(fd) {
+    bucky.get(write_stream, file, range);
+  });
+};
+
+Bucky.prototype.get = function(write_stream, file, range){
+  var bucky = this, expected = '200';
+    http_client = http.createClient(80, bucky.host);
+  var headers = {
+    'Date': new Date().toUTCString(),
+    'Host': bucky.host,
+  };
+  if (range) {
+    expected = '206';
+    headers['Range'] = range;
+  }
+  bucky.authorize('GET', file, headers);
+  var request = http_client.request('GET', '/' + file, headers);
+  request.end();
+  request.on('response', function (response) {
+  response.on('data', function (chunk) {
+    write_stream.write(chunk);
+  });
+  response.on('end', function(){
+    write_stream.end();
+    bucky.emit('complete');
+  });
+  write_stream.on('drain', function(){
+    response.resume();
+  });
+  write_stream.on('error', function(ex){
+    write_stream.destroy();
+    bucky.emit('error', ex);
+  });
+  /*else{
+   write_stream.end();
+   err = Error(response.statusCode + JSON.stringify(response.headers));
+   bucky.emit('error', err);
+  }*/
+ });
+};
+
+var Sissy = function(access_key, secret_key) {
   this.access_key = access_key;
+  this.secret_key = secret_key;
 };
 
 Sissy.prototype.bucket = function(host, bucket, options) {
