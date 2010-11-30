@@ -60,7 +60,7 @@ Bucky.prototype.upload_file = function(file, target){
       bucky.emit('error', err);
     } else {
       var send = function(md5) {
-        var read_stream = fs.createReadFileStream(file);
+        var read_stream = fs.createReadStream(file);
         bucky.upload(read_stream, target, stats.size, md5)
       };
       if(bucky.check_md5 === true){
