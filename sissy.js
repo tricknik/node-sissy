@@ -111,7 +111,7 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
     headers = {
     'Date': new Date().toUTCString(),
     'Host': host,
-    'Content-Type': mimeType,
+    'Content-Type': mime.lookup(target),
     'Expect': '100-continue',
   };
   if (content_length) {
