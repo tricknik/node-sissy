@@ -99,7 +99,7 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
       read_stream.on('end', function() {
         net_stream.end();
       });
-      bucky.put(read_stream, net_stream, target, stats.size, md5);
+      bucky.put(read_stream, net_stream, target, content_length, md5);
     }
   });
 };
