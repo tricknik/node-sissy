@@ -18,9 +18,9 @@ var Bucky = function(account, host, bucket, options){
   this.acl = options.acl || 'private'; // set status to private on upload
   this.check_md5 = options.check_md5 || true;  // check the md5 on upload
 };
-sys.inherits(Bucky, events.EventEmitter);
+sys.inherits(Bucky, EventEmitter);
 
-Bucky.prototype.authorize = function(headers, amz_headers, method, target){
+Bucky.prototype.authorize = function(headers, amz_headers, method, target) {
   var bucky = this,
     hmac = crypto.createHmac('sha1', bucky.account.secret_key),
     content_type = headers['Content-Type'] || '',
@@ -30,14 +30,13 @@ Bucky.prototype.authorize = function(headers, amz_headers, method, target){
   for (var header in amz_headers){
     var key = header.toString().toLowerCase(),
       value = headers[header];
-      if (key == 'x-amz-date') {
-        current_date = '';
-      } else if(value instanceof Array) {
-          value = value.join(',');
-      }
-      headers[key] = value;
-      amz_headers_list.push(key + ':' + value);
+    if (key == 'x-amz-date') {
+      current_date = '';
+    } else if(value instanceof Array) {
+        value = value.join(',');
     }
+    headers[key] = value;
+    amz_headers_list.push(key + ':' + value);
   }
   var amz_headers_string = amz_headers_list.sort().join('\n');
   var authorization_string =
@@ -79,6 +78,7 @@ Bucky.prototype.upload_file = function(file, target){
       } else {
         send();
       }
+    }
   });
 };
 
@@ -104,17 +104,17 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
   });
 };
 
-Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5){
+Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5) {
   var bucky = this,
     mime_type = mime.lookup(target),
-  var headers = {
+    headers = {
     'Date': new Date().toUTCString(),
     'Host': host,
     'Content-Type': mimeType,
     'Expect': '100-continue',
   };
   if (content_length) {
-    headers['Content-Length'] = content_length,
+    headers['Content-Length'] = content_length;
   }
   if (md5) {
     headers['Content-MD5'] = md5;
@@ -152,7 +152,7 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
       }
     });
   });
-});
+};
 
 var Sissy = function(secret_key, access_key){
   this.secret_key = secret_key;
