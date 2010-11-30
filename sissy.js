@@ -27,7 +27,7 @@ var events = require('events'),
   mime = require('node-mime/mime');
 
 /* Bucky is an S3 Bucket */
-var Bucky = function(account, host, bucke, options){
+var Bucky = function(account, host, bucket, options) {
   options = options || function(){};
   this.account = account;
   this.host = host;
@@ -39,7 +39,7 @@ var Bucky = function(account, host, bucke, options){
 sys.inherits(Bucky, events.EventEmitter);
 
 Bucky.prototype.authorize = function(method, target, headers, amz_headers) {
-  vart buckm = this,
+  var bucky = this,
     content_type = headers['Content-Type'] || '',
     md5 =  headers['Content-MD5'] || '',
     current_date = headers.Date || new Date().toUTCString(),
