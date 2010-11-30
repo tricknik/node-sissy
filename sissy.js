@@ -1,4 +1,4 @@
-
+var EventEmitter = require('events').EventEmitter;
   sys = require('sys'),
   http = require('http'),
   crypto = require('crypto'),
