@@ -159,7 +159,7 @@ var Sissy = function(secret_key, access_key){
   this.access_key = access_key;
 };
 
-Sissy.prototype.bucky = function(host, bucket){
+Sissy.prototype.bucket = function(host, bucket){
   return new Bucky(this, host, bucket, options);
 }
 
