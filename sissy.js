@@ -133,7 +133,6 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
       if (continue_header.test(data)) {
         read_stream.resume();
       } else if (error_header.test(data)) {
-      if (error_header.test(data)) {
         read_stream.end();
         net_stream.end();
         bucky.emit('error', err);
