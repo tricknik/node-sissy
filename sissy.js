@@ -32,9 +32,9 @@ var Bucky = function(account, host, bucket, options) {
   this.account = account;
   this.host = host;
   this.bucket = bucket;
-  this.storage_type = options.storage_type || 'STANDARD';  // standard storage type
-  this.acl = options.acl || 'private'; // set status to private on upload
-  this.check_md5 = options.check_md5 || true;  // check the md5 on upload
+  this.storage_type = options.storage_type || 'STANDARD';
+  this.check_md5 = options.check_md5 || true;
+  this.acl = options.acl || 'private';
 };
 sys.inherits(Bucky, events.EventEmitter);
 
@@ -106,23 +106,19 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
         bucky.emit('error', err);
     } else {
       net_stream = net.createConnection(80, host=addresses[0]);
-      net_stream.on('error', function(err){
+      net_stream.on('error', function(err) {
         bucky.emit('error', err);
       });
-      read_stream.on('error', function(err){
+      read_stream.on('error', function(err) {
         bucky.emit('error', err);
-      });
-      read_stream.on('end', function() {
-        net_stream.end();
       });
       bucky.put(read_stream, net_stream, target, content_length, md5);
     }
   });
 };
 
-Bucky.prototype.streaming = false;
 Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5) {
-  var bucky = this,
+  var bucky = this, streaming = false, ok = false,
     mime_type = mime.lookup(target),
     headers = {
     'Date': new Date().toUTCString(),
@@ -142,9 +138,9 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
   };
   bucky.authorize('PUT', target, headers, amz_headers);
   net_stream.on('data', function (data) { 
-    if (!bucky.streaming) {
-      bucky.streaming = true;
-      var continue_header = /100\s+continue/i;
+    if (!streaming) {
+      streaming = true;
+      var continue_header = /^HTTP\/1\.1 100\s+continue/i;
       if (continue_header.test(data)) {
         read_stream.resume();
       } else {
@@ -152,6 +148,14 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
         net_stream.end();
         err = Error(data);
         bucky.emit('error', err);
+      }
+    } else if (!ok) {
+      finished = true;
+      var ok_header = /^HTTP\/1\.1 200\s+OK/i;
+      if (ok_header.test(data)) {
+        net_stream.on('end', function() {
+          bucky.emit('complete');
+        });
       }
     }
   });
