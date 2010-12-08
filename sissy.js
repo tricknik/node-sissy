@@ -154,7 +154,7 @@ Bucky.prototype.put = function(read_stream, net_stream, target, content_length, 
         bucky.emit('error', err);
       }
     } else if (!ok) {
-      finished = true;
+      ok = true;
       var ok_header = /^HTTP\/1\.1 200\s+OK/i;
       if (ok_header.test(data)) {
         net_stream.on('end', function() {
