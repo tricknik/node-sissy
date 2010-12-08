@@ -33,8 +33,12 @@ var Bucky = function(account, host, bucket, options) {
   this.host = host;
   this.bucket = bucket;
   this.storage_type = options.storage_type || 'STANDARD';
-  this.check_md5 = options.check_md5 || true;
   this.acl = options.acl || 'private';
+  if (this.check_md5 == undefined) {
+    this.check_md5 = true;
+  } else {
+    this.check_md5 = options.check_md5;
+  }
 };
 sys.inherits(Bucky, events.EventEmitter);
 
