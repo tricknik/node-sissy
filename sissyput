@@ -1,0 +1,42 @@
+require.paths.push('.');
+var fs = require('fs'), Sissy = require("sissy").Sissy;
+
+if (process.argv.length < 5) {
+  console.log('Usage: node sissyput access_key secret_key bucket /path/to/dir');
+  process.exit();
+}
+
+var walk = function(dir) {
+  console.log("ENTERING", dir);
+  fs.readdir(dir, function(err, files) {
+    if (err) throw err;
+    var S3 = new Sissy(process.argv[2], process.argv[3]);
+    var step = function() {
+      if (files.length > 0) {
+        var file = files.pop();
+        var rel = [dir, file].join("/");
+        fs.stat(rel, function(err, stat) {
+          if (err) throw err;
+          if (stat.isFile()) {
+            var up = S3.bucket(process.argv[4] + ".s3.amazonaws.com", process.argv[4]),
+              key = rel.slice(process.argv[5].length + 1);
+            console.log("UPLOADING", key);
+            up.upload_file(rel, key);
+            up.on('complete', function() {
+              step();
+            });
+          } else {
+            step();
+            if (stat.isDirectory()) {
+              walk(rel);
+            }
+          }
+        });
+      }
+    };
+    step();
+  });
+};
+
+walk(process.argv[5]);
+
