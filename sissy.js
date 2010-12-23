@@ -23,9 +23,13 @@ var events = require('events'),
   dns = require('dns'),
   net = require('net'),
   http = require('http'),
-  crypto = require('crypto'),
-  mime = require('node-mime/mime');
-
+  crypto = require('crypto');
+  try {
+    mime = require('node-mime/mime');
+  } catch (err) {
+    mime = false;
+    console.log("Warning: Mime Module Not Found");
+  }
 /* Bucky is an S3 Bucket */
 var Bucky = function(account, host, bucket, options) {
   options = options || function(){};
@@ -123,13 +127,14 @@ Bucky.prototype.upload = function(read_stream, target, content_length, md5){
 
 Bucky.prototype.put = function(read_stream, net_stream, target, content_length, md5) {
   var bucky = this, streaming = false, ok = false,
-    mime_type = mime.lookup(target),
     headers = {
     'Date': new Date().toUTCString(),
     'Host': bucky.host,
-    'Content-Type': mime.lookup(target),
     'Expect': '100-continue',
   };
+  if (mime) {
+    headers['Content-Type'] = mime.lookup(target);
+  }
   if (content_length) {
     headers['Content-Length'] = content_length;
   }
